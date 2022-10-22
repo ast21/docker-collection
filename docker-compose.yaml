@@ -9,7 +9,18 @@ services:
     environment:
       - VIRTUAL_HOST=${ADMINER_HOST}
     networks: [ front, databases ]
-    restart: always
+    restart: unless-stopped
+
+  webhook:
+    profiles: [ webhook ]
+    image: almir/webhook
+    command: -verbose -hooks=/etc/webhook/hooks.json -hotreload
+    volumes:
+      - ./webhook:/etc/webhook
+    environment:
+      - VIRTUAL_HOST=${WEBHOOK_HOST}
+    networks: [ front ]
+    restart: unless-stopped
 
 networks:
   front:
