@@ -1,9 +1,26 @@
 version: '3.8'
 
 services:
+  proxy:
+    image: jwilder/nginx-proxy
+    profiles: [ proxy ]
+    container_name: proxy
+    ports: [ "80:80", "443:443" ]
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - /usr/share/nginx/html
+      - /etc/nginx/vhost.d
+      - ./proxy/certs:/etc/nginx/certs
+      - ./proxy/htpasswd:/etc/nginx/htpasswd
+      - ./proxy/proxy.conf:/etc/nginx/proxy.conf
+      - ./proxy/conf.d/uploads.conf:/etc/nginx/conf.d/uploads.conf
+    networks: [ front ]
+    restart: unless-stopped
+
   adminer:
-    profiles: [ adminer ]
     image: adminer
+    profiles: [ adminer ]
+    container_name: adminer
     volumes:
       - ./adminer/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
     environment:
@@ -12,8 +29,9 @@ services:
     restart: unless-stopped
 
   webhook:
-    profiles: [ webhook ]
     image: almir/webhook
+    profiles: [ webhook ]
+    container_name: webhook
     command: -verbose -hooks=/etc/webhook/hooks.json -hotreload
     volumes:
       - ./webhook:/etc/webhook
