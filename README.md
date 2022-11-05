@@ -27,9 +27,11 @@ docker network create databases
 
 ## Usage
 
+### Options
+
 Use one of these options
 
-### 1. Use `COMPOSE_PROFILES` env on default
+#### 1. Use `COMPOSE_PROFILES` env on default
 
 For current terminal session you need to set `COMPOSE_PROFILES` env, for example:
 ```shell
@@ -46,7 +48,7 @@ After use `docker compose` is only for exported profiles for your current termin
 docker compose up -d
 ```
 
-### 2. Use `COMPOSE_PROFILES` env for current command
+#### 2. Use `COMPOSE_PROFILES` env for current command
 
 ```shell
 COMPOSE_PROFILES=proxy docker compose up -d
@@ -58,13 +60,26 @@ COMPOSE_PROFILES=proxy,adminer docker compose up -d
 ```
 
 
-### 3. Use `--profile` flag for docker command
+#### 3. Use `--profile` flag for docker command
 
 This command work with only single profile
 
 ```shell
 docker compose --profile=proxy up -d
 ```
+
+### Overriding compose file
+
+Create file `docker-compose.override.yaml`. See the example:
+```yaml
+# docker-compose.override.yaml
+
+services:
+  postgresql:
+    ports: [ "5432:5432" ]
+```
+
+Then run your any command.
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)

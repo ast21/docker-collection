@@ -29,7 +29,7 @@ services:
       - ./proxy/certs:/etc/nginx/certs
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      DEFAULT_EMAIL: ${LETSENCRYPT_DEFAULT_EMAIL}
+      DEFAULT_EMAIL: ${LETSENCRYPT_DEFAULT_EMAIL:-admin@example.com}
       NGINX_PROXY_CONTAINER: proxy
     depends_on: [ proxy ]
     networks: [ proxy ]
@@ -42,8 +42,23 @@ services:
     volumes:
       - ./adminer/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
     environment:
-      - VIRTUAL_HOST=${ADMINER_HOST}
+      - VIRTUAL_HOST=${ADMINER_HOST:-adminer.localhost}
     networks: [ proxy, databases ]
+    restart: unless-stopped
+
+  postgresql:
+    user: ${POSTGRES_CONTAINER_USER:-1000}:${POSTGRES_CONTAINER_USER:-1000}
+    image: postgres:${POSTGRES_IMAGE_VERSION:-14}
+    profiles: [ postgresql ]
+    container_name: postgresql
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data
+    environment:
+      PGDATA: /var/lib/postgresql/data/data
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rootpass}
+    networks: [databases]
     restart: unless-stopped
 
   webhook:
@@ -54,8 +69,8 @@ services:
     volumes:
       - ./webhook:/etc/webhook
     environment:
-      - VIRTUAL_HOST=${WEBHOOK_HOST}
-      - LETSENCRYPT_HOST=${WEBHOOK_HOST}
+      - VIRTUAL_HOST=${WEBHOOK_HOST:-webhook.localhost}
+      - LETSENCRYPT_HOST=${WEBHOOK_HOST:-webhook.localhost}
     networks: [ proxy ]
     restart: unless-stopped
 
