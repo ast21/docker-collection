@@ -55,6 +55,7 @@ services:
       - ./webhook:/etc/webhook
     environment:
       - VIRTUAL_HOST=${WEBHOOK_HOST}
+      - LETSENCRYPT_HOST=${WEBHOOK_HOST}
     networks: [ proxy ]
     restart: unless-stopped
 
