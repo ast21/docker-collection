@@ -21,7 +21,7 @@ cp .env.example .env
 
 3. Create docker networks
 ```shell
-docker network create front
+docker network create proxy
 docker network create databases
 ```
 
