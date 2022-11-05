@@ -2,20 +2,38 @@ version: '3.8'
 
 services:
   proxy:
-    image: jwilder/nginx-proxy
+    image: nginxproxy/nginx-proxy
     profiles: [ proxy ]
     container_name: proxy
     ports: [ "80:80", "443:443" ]
     volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - /usr/share/nginx/html
-      - /etc/nginx/vhost.d
+      - proxy_conf.d:/etc/nginx/conf.d
+      - proxy_vhost.d:/etc/nginx/vhost.d
+      - proxy_html:/usr/share/nginx/html
       - ./proxy/certs:/etc/nginx/certs
       - ./proxy/htpasswd:/etc/nginx/htpasswd
-      - ./proxy/proxy.conf:/etc/nginx/proxy.conf
       - ./proxy/conf.d/uploads.conf:/etc/nginx/conf.d/uploads.conf
+      - /var/run/docker.sock:/tmp/docker.sock:ro
     networks: [ proxy ]
     restart: unless-stopped
+
+  proxy-letsencrypt:
+    image: nginxproxy/acme-companion
+    profiles: [ proxy-letsencrypt ]
+    container_name: proxy-letsencrypt
+    volumes:
+      - proxy_conf.d:/etc/nginx/conf.d
+      - proxy_vhost.d:/etc/nginx/vhost.d
+      - proxy_html:/usr/share/nginx/html
+      - proxy_acme.sh:/etc/acme.sh
+      - ./proxy/certs:/etc/nginx/certs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      DEFAULT_EMAIL: ${LETSENCRYPT_DEFAULT_EMAIL}
+      NGINX_PROXY_CONTAINER: proxy
+    depends_on: [ proxy ]
+    networks: [ proxy ]
+    restart: always
 
   adminer:
     image: adminer
@@ -39,6 +57,12 @@ services:
       - VIRTUAL_HOST=${WEBHOOK_HOST}
     networks: [ proxy ]
     restart: unless-stopped
+
+volumes:
+  proxy_conf.d:
+  proxy_vhost.d:
+  proxy_html:
+  proxy_acme.sh:
 
 networks:
   proxy:
