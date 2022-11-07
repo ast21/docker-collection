@@ -23,6 +23,7 @@ cp .env.example .env
 ```shell
 docker network create proxy
 docker network create databases
+docker network create tools
 ```
 
 ## Usage

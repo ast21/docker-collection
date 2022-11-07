@@ -58,8 +58,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
       POSTGRES_USER: ${POSTGRES_USER:-root}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rootpass}
-    networks: [databases]
+    networks: [ databases ]
     restart: unless-stopped
+
+  mailcatcher:
+    image: schickling/mailcatcher
+    profiles: [ mailcatcher ]
+    container_name: mailcatcher
+    environment:
+      - VIRTUAL_HOST=${MAILCATCHER_HOST:-mailcatcher.localhost}
+      - VIRTUAL_PORT=1080
+    networks: [ proxy, tools ]
 
   webhook:
     image: almir/webhook
@@ -86,4 +95,7 @@ networks:
     external: true
   databases:
     name: databases
+    external: true
+  tools:
+    name: tools
     external: true
