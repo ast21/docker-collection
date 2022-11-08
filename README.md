@@ -63,10 +63,8 @@ COMPOSE_PROFILES=proxy,adminer docker compose up -d
 
 #### 3. Use `--profile` flag for docker command
 
-This command work with only single profile
-
 ```shell
-docker compose --profile=proxy up -d
+docker compose --profile=proxy --profile=adminer up -d
 ```
 
 ### Overriding compose file
