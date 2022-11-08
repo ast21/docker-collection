@@ -1,5 +1,7 @@
 services:
   postgresql:
     ports: [ "5432:5432" ]
+  mysql:
+    ports: [ "3306:3306" ]
   mailcatcher:
     ports: [ "1025:1025", "1080:1080" ]

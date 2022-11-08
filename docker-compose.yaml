@@ -54,10 +54,24 @@ services:
     volumes:
       - ./postgresql:/var/lib/postgresql/data
     environment:
-      PGDATA: /var/lib/postgresql/data/data
-      POSTGRES_DB: ${POSTGRES_DB:-postgres}
-      POSTGRES_USER: ${POSTGRES_USER:-root}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rootpass}
+      - PGDATA=/var/lib/postgresql/data/data
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+      - POSTGRES_USER=${POSTGRES_USER:-root}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-rootpass}
+    networks: [ databases ]
+    restart: unless-stopped
+
+  mysql:
+    user: ${MYSQL_CONTAINER_USER:-1000}:${MYSQL_CONTAINER_USER:-1000}
+    image: mysql:${MYSQL_IMAGE_VERSION:-8}
+    profiles: [ mysql ]
+    container_name: mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
+    volumes:
+      - ./mysql:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_USER=${MYSQL_USER:-root}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD:-rootpass}
     networks: [ databases ]
     restart: unless-stopped
 
