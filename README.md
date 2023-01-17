@@ -28,48 +28,26 @@ docker network create tools
 
 ## Usage
 
-### Options
-
-Use one of these options
-
-#### 1. Use `COMPOSE_PROFILES` env on default
-
-For current terminal session you need to set `COMPOSE_PROFILES` env, for example:
+Run container:
 ```shell
-export COMPOSE_PROFILES=proxy
+docker compose up -d postgresql
 ```
 
-or with multiple profiles 
+or run with multiple containers:
 ```shell
-export COMPOSE_PROFILES=proxy,adminer
-```
-
-After use `docker compose` is only for exported profiles for your current terminal session
-```shell
-docker compose up -d
-```
-
-#### 2. Use `COMPOSE_PROFILES` env for current command
-
-```shell
-COMPOSE_PROFILES=proxy docker compose up -d
-```
-
-or with multiple profiles
-```shell
-COMPOSE_PROFILES=proxy,adminer docker compose up -d
+docker compose up -d postgresql adminer
 ```
 
 
-#### 3. Use `--profile` flag for docker command
-
-```shell
-docker compose --profile=proxy --profile=adminer up -d
-```
 
 ### Overriding compose file
 
-Create file `docker-compose.override.yaml`. See the example:
+Create file `docker-compose.override.yaml`.
+```shell
+cp docker-compose.override.yaml.example docker-compose.override.yaml
+```
+
+See the example:
 ```yaml
 # docker-compose.override.yaml
 
@@ -78,7 +56,7 @@ services:
     ports: [ "5432:5432" ]
 ```
 
-Then run your any command.
+Then run your container.
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
