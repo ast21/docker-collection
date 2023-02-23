@@ -5,3 +5,8 @@ services:
     ports: [ "3306:3306" ]
   mailcatcher:
     ports: [ "1025:1025", "1080:1080" ]
+  minio:
+    ports: [ "9000:9000", "9001:9001" ]
+  redis:
+    command: --save 60 1 --loglevel warning # snapshot every 60 seconds if at least 1 write operation was performed
+    ports: [ "6379:6379" ]

@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # https://hub.docker.com/r/nginxproxy/nginx-proxy
   proxy:
     image: nginxproxy/nginx-proxy
     profiles: [ proxy ]
@@ -17,6 +18,7 @@ services:
     networks: [ proxy ]
     restart: unless-stopped
 
+  # https://hub.docker.com/r/nginxproxy/acme-companion
   proxy-letsencrypt:
     image: nginxproxy/acme-companion
     profiles: [ proxy-letsencrypt ]
@@ -35,6 +37,7 @@ services:
     networks: [ proxy ]
     restart: always
 
+  # https://hub.docker.com/_/adminer
   adminer:
     image: adminer
     profiles: [ adminer ]
@@ -46,6 +49,7 @@ services:
     networks: [ proxy, databases ]
     restart: unless-stopped
 
+  # https://hub.docker.com/_/postgres
   postgresql:
     user: ${POSTGRES_CONTAINER_USER:-1000}:${POSTGRES_CONTAINER_USER:-1000}
     image: postgres:${POSTGRES_IMAGE_VERSION:-14}
@@ -61,6 +65,7 @@ services:
     networks: [ databases ]
     restart: unless-stopped
 
+  # https://hub.docker.com/_/mysql
   mysql:
     user: ${MYSQL_CONTAINER_USER:-1000}:${MYSQL_CONTAINER_USER:-1000}
     image: mysql:${MYSQL_IMAGE_VERSION:-8}
@@ -75,6 +80,18 @@ services:
     networks: [ databases ]
     restart: unless-stopped
 
+  # https://hub.docker.com/_/redis
+  redis:
+    user: ${REDIS_CONTAINER_USER:-1000}:${REDIS_CONTAINER_USER:-1000}
+    image: redis:${REDIS_IMAGE_VERSION:-7}
+    profiles: [ redis ]
+    container_name: redis
+    volumes:
+      - ./redis:/data
+    networks: [ databases ]
+    restart: unless-stopped
+
+  # https://hub.docker.com/r/schickling/mailcatcher
   mailcatcher:
     image: schickling/mailcatcher
     profiles: [ mailcatcher ]
@@ -84,6 +101,7 @@ services:
       - VIRTUAL_PORT=1080
     networks: [ proxy, tools ]
 
+  # https://hub.docker.com/r/minio/minio
   minio:
     image: minio/minio
     profiles: [ minio ]
@@ -98,6 +116,7 @@ services:
     networks: [ proxy, tools ]
     restart: unless-stopped
 
+  # https://hub.docker.com/r/almir/webhook
   webhook:
     image: almir/webhook
     profiles: [ webhook ]
