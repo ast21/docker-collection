@@ -1,52 +1,131 @@
 version: '3.8'
 
 services:
-  # https://hub.docker.com/r/nginxproxy/nginx-proxy
-  proxy:
-    image: nginxproxy/nginx-proxy
-    profiles: [ proxy ]
-    container_name: proxy
+  # https://github.com/traefik/traefik
+  traefik:
+    image: traefik:2.10
+    profiles: [ traefik ]
+    container_name: traefik
+    command:
+      # Включает прослушивание докера на новые события и следит за лейблами контейнеров.
+      - --providers.docker=true
+      # Отключает автоматическое создание роутеров ко всем контейнерам на сервере.
+      - --providers.docker.exposedbydefault=false
+      # Сеть докера, по которой будет выполнятся подключение к контейнерам.
+      - --providers.docker.network=traefik
+      # Папка с конфигурационным файлом.
+      - --providers.file.directory=/etc/traefik/dynamic
+      # Включает отслеживание изменений файла конфигурации.
+      - --providers.file.watch=true
+      # Создаёт entrypoint с названием http и слушает 80 порт.
+      - --entrypoints.web.address=:80
+      # Создаёт entrypoint с названием https и слушает 443 порт.
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      #- --certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+      - --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_DEFAULT_EMAIL:-admin@example.com}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      # debug mode
+      - --log.level=DEBUG
     ports: [ "80:80", "443:443" ]
     volumes:
-      - proxy_conf.d:/etc/nginx/conf.d
-      - proxy_vhost.d:/etc/nginx/vhost.d
-      - proxy_html:/usr/share/nginx/html
-      - ./proxy/certs:/etc/nginx/certs
-      - ./proxy/htpasswd:/etc/nginx/htpasswd
-      - ./proxy/conf.d/uploads.conf:/etc/nginx/conf.d/uploads.conf
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-    networks: [ proxy ]
-    restart: unless-stopped
-
-  # https://hub.docker.com/r/nginxproxy/acme-companion
-  proxy-letsencrypt:
-    image: nginxproxy/acme-companion
-    profiles: [ proxy-letsencrypt ]
-    container_name: proxy-letsencrypt
-    volumes:
-      - proxy_conf.d:/etc/nginx/conf.d
-      - proxy_vhost.d:/etc/nginx/vhost.d
-      - proxy_html:/usr/share/nginx/html
-      - proxy_acme.sh:/etc/acme.sh
-      - ./proxy/certs:/etc/nginx/certs
+      - ./traefik/traefik.toml:/etc/traefik/dynamic/traefik.toml
+      - ./traefik/letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      DEFAULT_EMAIL: ${LETSENCRYPT_DEFAULT_EMAIL:-admin@example.com}
-      NGINX_PROXY_CONTAINER: proxy
-    depends_on: [ proxy ]
-    networks: [ proxy ]
-    restart: always
+    networks: [ traefik ]
+    restart: unless-stopped
 
   # https://hub.docker.com/_/adminer
   adminer:
     image: adminer
     profiles: [ adminer ]
     container_name: adminer
+    labels:
+      - traefik.enable=true
+      # adminer-web - роутер для http
+      - traefik.http.routers.adminer-web.entrypoints=web
+      - traefik.http.routers.adminer-web.rule=Host(`${ADMINER_HOST:-adminer.localhost}`)
+      - traefik.http.routers.adminer-web.middlewares=to-https
+      # adminer-websecure - роутер для https
+      - traefik.http.routers.adminer-websecure.entrypoints=websecure
+      - traefik.http.routers.adminer-websecure.rule=Host(`${ADMINER_HOST:-adminer.localhost}`)
+      - traefik.http.routers.adminer-websecure.tls=true
+      - traefik.http.routers.adminer-websecure.tls.certresolver=letsencrypt
+      # redirect to https middleware
+      - traefik.http.middlewares.to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.to-https.redirectscheme.permanent=true
     volumes:
       - ./adminer/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+    networks: [ traefik, databases ]
+    restart: unless-stopped
+
+  # https://hub.docker.com/r/schickling/mailcatcher
+  mailcatcher:
+    image: schickling/mailcatcher
+    profiles: [ mailcatcher ]
+    container_name: mailcatcher
+    labels:
+      - traefik.enable=true
+      # mailcatcher-web - роутер для http
+      - traefik.http.routers.mailcatcher-web.entrypoints=web
+      - traefik.http.routers.mailcatcher-web.rule=Host(`${MAILCATCHER_HOST:-mailcatcher.localhost}`)
+      - traefik.http.routers.mailcatcher-web.middlewares=to-https
+      - traefik.http.middlewares.to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.to-https.redirectscheme.permanent=true
+      # mailcatcher-websecure - роутер для https
+      - traefik.http.routers.mailcatcher-websecure.entrypoints=websecure
+      - traefik.http.routers.mailcatcher-websecure.rule=Host(`${MAILCATCHER_HOST:-mailcatcher.localhost}`)
+      - traefik.http.routers.mailcatcher-websecure.tls=true
+      - traefik.http.routers.mailcatcher-websecure.tls.certresolver=letsencrypt
+      - traefik.http.routers.mailcatcher-websecure.service=mailcatcher-service
+      - traefik.http.services.mailcatcher-service.loadbalancer.server.port=1080
+      # redirect to https middleware
+    networks: [ traefik, tools ]
+
+  # https://hub.docker.com/r/minio/minio
+  minio:
+    image: minio/minio
+    profiles: [ minio ]
+    container_name: minio
+    command: server /minio --console-address=:9001
+    labels:
+      - traefik.enable=true
+      # minio-console-web - редирект на https
+      - traefik.http.routers.minio-console-web.entrypoints=web
+      - traefik.http.routers.minio-console-web.rule=Host(`${MINIO_CONSOLE_HOST:-minio-console.localhost}`)
+      - traefik.http.routers.minio-console-web.middlewares=to-https
+      - traefik.http.routers.minio-console-web.service=minio-console-service
+      # minio-console - Админ панель minio
+      - traefik.http.routers.minio-console.entrypoints=websecure
+      - traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_HOST:-minio-console.localhost}`)
+      - traefik.http.routers.minio-console.tls=true
+      - traefik.http.routers.minio-console.tls.certresolver=letsencrypt
+      - traefik.http.routers.minio-console.service=minio-console-service
+      - traefik.http.services.minio-console-service.loadbalancer.server.port=9001
+
+      # minio-web - редирект на https
+      - traefik.http.routers.minio-web.entrypoints=web
+      - traefik.http.routers.minio-web.rule=Host(`${MINIO_HOST:-minio.localhost}`)
+      - traefik.http.routers.minio-web.middlewares=to-https
+      - traefik.http.routers.minio-web.service=minio-service
+      # minio - s3 api
+      - traefik.http.routers.minio.entrypoints=websecure
+      - traefik.http.routers.minio.rule=Host(`${MINIO_HOST:-minio.localhost}`)
+      - traefik.http.routers.minio.tls=true
+      - traefik.http.routers.minio.tls.certresolver=letsencrypt
+      - traefik.http.routers.minio.service=minio-service
+      - traefik.http.services.minio-service.loadbalancer.server.port=9000
+
+      # redirect to https middleware
+      - traefik.http.middlewares.to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.to-https.redirectscheme.permanent=true
+    volumes:
+      - ./minio:/minio
     environment:
-      - VIRTUAL_HOST=${ADMINER_HOST:-adminer.localhost}
-    networks: [ proxy, databases ]
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://minio.localhost}
+    networks: [ traefik, tools ]
     restart: unless-stopped
 
   # https://hub.docker.com/_/postgres
@@ -91,54 +170,9 @@ services:
     networks: [ databases ]
     restart: unless-stopped
 
-  # https://hub.docker.com/r/schickling/mailcatcher
-  mailcatcher:
-    image: schickling/mailcatcher
-    profiles: [ mailcatcher ]
-    container_name: mailcatcher
-    environment:
-      - VIRTUAL_HOST=${MAILCATCHER_HOST:-mailcatcher.localhost}
-      - VIRTUAL_PORT=1080
-    networks: [ proxy, tools ]
-
-  # https://hub.docker.com/r/minio/minio
-  minio:
-    image: minio/minio
-    profiles: [ minio ]
-    container_name: minio
-    command: server /minio --console-address=:9001
-    volumes:
-      - ./minio:/minio
-    environment:
-      - VIRTUAL_HOST=${MINIO_HOST:-minio.localhost}
-      - VIRTUAL_PORT=9001
-      - MINIO_BROWSER_REDIRECT_URL=${MINIO_HOST_FULL:-http://minio.localhost}
-    networks: [ proxy, tools ]
-    restart: unless-stopped
-
-  # https://hub.docker.com/r/almir/webhook
-  webhook:
-    image: almir/webhook
-    profiles: [ webhook ]
-    container_name: webhook
-    command: -verbose -hooks=/etc/webhook/hooks.json -hotreload
-    volumes:
-      - ./webhook:/etc/webhook
-    environment:
-      - VIRTUAL_HOST=${WEBHOOK_HOST:-webhook.localhost}
-      - LETSENCRYPT_HOST=${WEBHOOK_HOST:-webhook.localhost}
-    networks: [ proxy ]
-    restart: unless-stopped
-
-volumes:
-  proxy_conf.d:
-  proxy_vhost.d:
-  proxy_html:
-  proxy_acme.sh:
-
 networks:
-  proxy:
-    name: proxy
+  traefik:
+    name: traefik
     external: true
   databases:
     name: databases

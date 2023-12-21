@@ -1,12 +1,34 @@
 services:
+  adminer:
+    ports: [ "8080:8080" ]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.adminer-web.entrypoints=web
+      - traefik.http.routers.adminer-web.rule=Host(`${ADMINER_HOST:-adminer.localhost}`)
+  mailcatcher:
+    ports: [ "1025:1025", "1080:1080" ]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mailcatcher-web.entrypoints=web
+      - traefik.http.routers.mailcatcher-web.rule=Host(`${MAILCATCHER_HOST:-mailcatcher.localhost}`)
+  minio:
+    ports: [ "9000:9000", "9001:9001" ]
+    labels:
+      - traefik.enable=true
+      # Console
+      - traefik.http.routers.minio-console-web.entrypoints=web
+      - traefik.http.routers.minio-console-web.rule=Host(`${MINIO_CONSOLE_HOST:-minio-console.localhost}`)
+      - traefik.http.routers.minio-console-web.service=minio-console-service
+      - traefik.http.services.minio-console-service.loadbalancer.server.port=9001
+      # s3 api
+      - traefik.http.routers.minio-web.entrypoints=web
+      - traefik.http.routers.minio-web.rule=Host(`${MINIO_HOST:-minio.localhost}`)
+      - traefik.http.routers.minio.service=minio-service
+      - traefik.http.services.minio-service.loadbalancer.server.port=9000
   postgresql:
     ports: [ "5432:5432" ]
   mysql:
     ports: [ "3306:3306" ]
-  mailcatcher:
-    ports: [ "1025:1025", "1080:1080" ]
-  minio:
-    ports: [ "9000:9000", "9001:9001" ]
   redis:
     command: --save 60 1 --loglevel warning # snapshot every 60 seconds if at least 1 write operation was performed
     ports: [ "6379:6379" ]
