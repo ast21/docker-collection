@@ -21,24 +21,22 @@ cp .env.example .env
 
 3. Create docker networks
 ```shell
-docker network create proxy
+docker network create traefik
 docker network create databases
 docker network create tools
 ```
 
 ## Usage
 
-Run container:
+Run one container:
 ```shell
 docker compose up -d postgresql
 ```
 
-or run with multiple containers:
+or run multiple containers:
 ```shell
 docker compose up -d postgresql adminer
 ```
-
-
 
 ### Overriding compose file
 
