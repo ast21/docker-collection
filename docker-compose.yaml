@@ -7,10 +7,14 @@ services:
     profiles: [ traefik ]
     container_name: traefik
     command:
+      # Dashboard enabled
+      - --api.insecure=true
+      - --api.dashboard=true
+
       # Включает прослушивание докера на новые события и следит за лейблами контейнеров.
       - --providers.docker=true
       # Отключает автоматическое создание роутеров ко всем контейнерам на сервере.
-      - --providers.docker.exposedbydefault=false
+      - --providers.docker.exposedByDefault=false
       # Сеть докера, по которой будет выполнятся подключение к контейнерам.
       - --providers.docker.network=traefik
       # Папка с конфигурационным файлом.
@@ -19,18 +23,28 @@ services:
       - --providers.file.watch=true
       # Создаёт entrypoint с названием http и слушает 80 порт.
       - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=webSecure
+      - --entryPoints.web.http.redirections.entrypoint.scheme=https
       # Создаёт entrypoint с названием https и слушает 443 порт.
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
-      #- --certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
-      - --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_DEFAULT_EMAIL:-admin@example.com}
-      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --entrypoints.webSecure.address=:443
+      - --entrypoints.webSecure.http.tls.certResolver=letsencryptResolver
+
+      - --certificatesResolvers.letsencryptResolver.acme.tlsChallenge=true
+      #- --certificatesResolvers.letsencryptResolver.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
+      - --certificatesResolvers.letsencryptResolver.acme.email=${LETSENCRYPT_DEFAULT_EMAIL:-admin@example.com}
+      - --certificatesResolvers.letsencryptResolver.acme.storage=/etc/traefik/letsencrypt/acme.json
       # debug mode
       - --log.level=DEBUG
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.traefikDashboard.rule=Host(`${TRAEFIK_HOST:-traefik.localhost}`)
+      - traefik.http.routers.traefikDashboard.service=api@internal
+      - traefik.http.routers.traefikDashboard.middlewares=traefikAuth@file
     ports: [ "80:80", "443:443" ]
     volumes:
-      - ./traefik/traefik.toml:/etc/traefik/dynamic/traefik.toml
-      - ./traefik/letsencrypt:/letsencrypt
+      - ./traefik/dynamic:/etc/traefik/dynamic
+      - ./traefik/htpasswd:/etc/traefik/htpasswd
+      - ./traefik/letsencrypt:/etc/traefik/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks: [ traefik ]
     restart: unless-stopped
@@ -45,15 +59,12 @@ services:
       # adminer-web - роутер для http
       - traefik.http.routers.adminer-web.entrypoints=web
       - traefik.http.routers.adminer-web.rule=Host(`${ADMINER_HOST:-adminer.localhost}`)
-      - traefik.http.routers.adminer-web.middlewares=to-https
-      # adminer-websecure - роутер для https
-      - traefik.http.routers.adminer-websecure.entrypoints=websecure
-      - traefik.http.routers.adminer-websecure.rule=Host(`${ADMINER_HOST:-adminer.localhost}`)
-      - traefik.http.routers.adminer-websecure.tls=true
-      - traefik.http.routers.adminer-websecure.tls.certresolver=letsencrypt
-      # redirect to https middleware
-      - traefik.http.middlewares.to-https.redirectscheme.scheme=https
-      - traefik.http.middlewares.to-https.redirectscheme.permanent=true
+      - traefik.http.routers.adminer-web.middlewares=permanentToHttps@file
+      # adminer-webSecure - роутер для https
+      - traefik.http.routers.adminer-webSecure.entrypoints=webSecure
+      - traefik.http.routers.adminer-webSecure.rule=Host(`${ADMINER_HOST:-adminer.localhost}`)
+      - traefik.http.routers.adminer-webSecure.tls=true
+      - traefik.http.routers.adminer-webSecure.tls.certResolver=letsencryptResolver
     volumes:
       - ./adminer/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
     networks: [ traefik, databases ]
@@ -69,16 +80,14 @@ services:
       # mailcatcher-web - роутер для http
       - traefik.http.routers.mailcatcher-web.entrypoints=web
       - traefik.http.routers.mailcatcher-web.rule=Host(`${MAILCATCHER_HOST:-mailcatcher.localhost}`)
-      - traefik.http.routers.mailcatcher-web.middlewares=to-https
-      - traefik.http.middlewares.to-https.redirectscheme.scheme=https
-      - traefik.http.middlewares.to-https.redirectscheme.permanent=true
-      # mailcatcher-websecure - роутер для https
-      - traefik.http.routers.mailcatcher-websecure.entrypoints=websecure
-      - traefik.http.routers.mailcatcher-websecure.rule=Host(`${MAILCATCHER_HOST:-mailcatcher.localhost}`)
-      - traefik.http.routers.mailcatcher-websecure.tls=true
-      - traefik.http.routers.mailcatcher-websecure.tls.certresolver=letsencrypt
-      - traefik.http.routers.mailcatcher-websecure.service=mailcatcher-service
-      - traefik.http.services.mailcatcher-service.loadbalancer.server.port=1080
+      - traefik.http.routers.mailcatcher-web.middlewares=permanentToHttps@file
+      # mailcatcher-webSecure - роутер для https
+      - traefik.http.routers.mailcatcher-webSecure.entrypoints=webSecure
+      - traefik.http.routers.mailcatcher-webSecure.rule=Host(`${MAILCATCHER_HOST:-mailcatcher.localhost}`)
+      - traefik.http.routers.mailcatcher-webSecure.tls=true
+      - traefik.http.routers.mailcatcher-webSecure.tls.certResolver=letsencryptResolver
+      - traefik.http.routers.mailcatcher-webSecure.service=mailcatcherService
+      - traefik.http.services.mailcatcherService.loadBalancer.server.port=1080
       # redirect to https middleware
     networks: [ traefik, tools ]
 
@@ -93,32 +102,28 @@ services:
       # minio-console-web - редирект на https
       - traefik.http.routers.minio-console-web.entrypoints=web
       - traefik.http.routers.minio-console-web.rule=Host(`${MINIO_CONSOLE_HOST:-minio-console.localhost}`)
-      - traefik.http.routers.minio-console-web.middlewares=to-https
-      - traefik.http.routers.minio-console-web.service=minio-console-service
+      - traefik.http.routers.minio-console-web.middlewares=permanentToHttps@file
+      - traefik.http.routers.minio-console-web.service=minioConsoleService
       # minio-console - Админ панель minio
-      - traefik.http.routers.minio-console.entrypoints=websecure
+      - traefik.http.routers.minio-console.entrypoints=webSecure
       - traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_HOST:-minio-console.localhost}`)
       - traefik.http.routers.minio-console.tls=true
-      - traefik.http.routers.minio-console.tls.certresolver=letsencrypt
-      - traefik.http.routers.minio-console.service=minio-console-service
-      - traefik.http.services.minio-console-service.loadbalancer.server.port=9001
+      - traefik.http.routers.minio-console.tls.certResolver=letsencryptResolver
+      - traefik.http.routers.minio-console.service=minioConsoleService
+      - traefik.http.services.minioConsoleService.loadBalancer.server.port=9001
 
       # minio-web - редирект на https
       - traefik.http.routers.minio-web.entrypoints=web
       - traefik.http.routers.minio-web.rule=Host(`${MINIO_HOST:-minio.localhost}`)
-      - traefik.http.routers.minio-web.middlewares=to-https
-      - traefik.http.routers.minio-web.service=minio-service
+      - traefik.http.routers.minio-web.middlewares=permanentToHttps@file
+      - traefik.http.routers.minio-web.service=minioService
       # minio - s3 api
-      - traefik.http.routers.minio.entrypoints=websecure
+      - traefik.http.routers.minio.entrypoints=webSecure
       - traefik.http.routers.minio.rule=Host(`${MINIO_HOST:-minio.localhost}`)
       - traefik.http.routers.minio.tls=true
-      - traefik.http.routers.minio.tls.certresolver=letsencrypt
-      - traefik.http.routers.minio.service=minio-service
-      - traefik.http.services.minio-service.loadbalancer.server.port=9000
-
-      # redirect to https middleware
-      - traefik.http.middlewares.to-https.redirectscheme.scheme=https
-      - traefik.http.middlewares.to-https.redirectscheme.permanent=true
+      - traefik.http.routers.minio.tls.certResolver=letsencryptResolver
+      - traefik.http.routers.minio.service=minioService
+      - traefik.http.services.minioService.loadBalancer.server.port=9000
     volumes:
       - ./minio:/minio
     environment:

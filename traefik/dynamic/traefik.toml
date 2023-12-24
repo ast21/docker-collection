@@ -1,0 +1,7 @@
+[http]
+  [http.middlewares]
+    [http.middlewares.permanentToHttps.redirectScheme]
+      scheme = "https"
+      permanent = true
+    [http.middlewares.traefikAuth.basicAuth]
+      usersFile = "/etc/traefik/htpasswd/traefik"
