@@ -5,7 +5,7 @@
 1. Create htpasswd/traefik file for Traefik dashboard Basic Auth
 
 ```shell
-htpasswd -b traefik/htpasswd/traefik your_user your_password
+htpasswd -bc traefik/htpasswd/traefik your_user your_password
 ```
 
 ## Usage
