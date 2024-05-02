@@ -65,6 +65,8 @@ services:
       - traefik.http.routers.adminer-webSecure.rule=Host(`${ADMINER_HOST:-adminer.localhost}`)
       - traefik.http.routers.adminer-webSecure.tls=true
       - traefik.http.routers.adminer-webSecure.tls.certResolver=letsencryptResolver
+      - traefik.http.routers.adminer-webSecure.middlewares=adminerAuth
+      - traefik.http.middlewares.adminerAuth.basicAuth.usersFile=/etc/traefik/htpasswd/${ADMINER_HOST:-adminer.localhost}
     volumes:
       - ./adminer/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
     networks: [ traefik, databases ]
