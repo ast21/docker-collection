@@ -212,6 +212,16 @@ services:
     networks: [ databases ]
     restart: unless-stopped
 
+  # https://hub.docker.com/r/tarampampam/3proxy
+  3proxy:
+    image: tarampampam/3proxy:${PROXY_IMAGE_VERSION:-1.9.1}
+    profiles: [ 3proxy ]
+    container_name: 3proxy
+    environment:
+      - PROXY_LOGIN=${PROXY_LOGIN}
+      - PROXY_PASSWORD=${PROXY_PASSWORD}
+    ports: [ "3128:3128/tcp", "1080:1080/tcp" ]
+
 networks:
   traefik:
     name: traefik
