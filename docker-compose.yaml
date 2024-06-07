@@ -170,6 +170,39 @@ services:
       - net.ipv4.ip_forward=1
       - net.ipv4.conf.all.src_valid_mark=1
 
+  # https://docs.linuxserver.io/images/docker-code-server
+  code:
+    image: lscr.io/linuxserver/code-server:latest
+    profiles: [ code ]
+    container_name: code
+    labels:
+      - traefik.enable=true
+      # code-web - роутер для http
+      - traefik.http.routers.code-web.entrypoints=web
+      - traefik.http.routers.code-web.rule=Host(`${CODE_HOST:-code.localhost}`)
+      - traefik.http.routers.code-web.middlewares=permanentToHttps@file
+      # code-webSecure - роутер для https
+      - traefik.http.routers.code-webSecure.entrypoints=webSecure
+      - traefik.http.routers.code-webSecure.rule=Host(`${CODE_HOST:-code.localhost}`)
+      - traefik.http.routers.code-webSecure.tls=true
+      - traefik.http.routers.code-webSecure.tls.certResolver=letsencryptResolver
+      - traefik.http.routers.code-webSecure.service=codeService
+      - traefik.http.services.codeService.loadBalancer.server.port=8443
+      # redirect to https middleware
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - PASSWORD=${CODE_PASSWORD}
+      #- HASHED_PASSWORD= #optional
+      #- SUDO_PASSWORD=password #optional
+      #- SUDO_PASSWORD_HASH= #optional
+      #- PROXY_DOMAIN=code-server.my.domain #optional
+      #- DEFAULT_WORKSPACE=/config/workspace #optional
+    volumes:
+      - ./code/config:/config
+    networks: [ traefik ]
+
   # https://hub.docker.com/_/postgres
   postgresql:
     user: ${POSTGRES_CONTAINER_USER:-1000}:${POSTGRES_CONTAINER_USER:-1000}
@@ -221,6 +254,25 @@ services:
       - PROXY_LOGIN=${PROXY_LOGIN}
       - PROXY_PASSWORD=${PROXY_PASSWORD}
     ports: [ "3128:3128/tcp", "1080:1080/tcp" ]
+    restart: unless-stopped
+
+  # https://hub.docker.com/r/telegrammessenger/proxy
+  mtproto:
+    image: telegrammessenger/proxy:${MTPROTO_IMAGE_VERSION:-latest}
+    profiles: [ mtproto ]
+    container_name: mtproto
+    volumes:
+      - ./mtproto/run.sh:/run.sh
+      - ./mtproto/data:/data
+    environment:
+      - SECRET_COUNT=${MTPROTO_SECRET_COUNT:-2}
+      - PORT=${MTPROTO_PORT:-8443}
+      - TAG=${MTPROTO_TAG}
+    ports: [ "8443:8443" ]
+    network_mode: host
+    restart: unless-stopped
+
+
 
 networks:
   traefik:
