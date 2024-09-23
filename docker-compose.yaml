@@ -177,9 +177,27 @@ services:
       - net.ipv4.ip_forward=1
       - net.ipv4.conf.all.src_valid_mark=1
 
+  ipsec:
+    image: hwdsl2/ipsec-vpn-server
+    profiles: [ ipsec ]
+    container_name: ipsec
+    volumes:
+      - /lib/modules:/lib/modules:ro
+      - ./ipsec:/etc/ipsec.d
+    environment:
+      - VPN_IPSEC_PSK=${IPSEC_VPN_IPSEC_PSK:-your_ipsec_pre_shared_key}
+      - VPN_USER=${IPSEC_VPN_USER:-user}
+      - VPN_PASSWORD=${IPSEC_VPN_PASSWORD:-pass}
+    restart: unless-stopped
+    ports:
+      - "500:500/udp"
+      - "4500:4500/udp"
+    privileged: true
+
+
   # https://docs.linuxserver.io/images/docker-code-server
   code:
-    image: lscr.io/linuxserver/code-server:latest
+    image: breakhack/code-server:4.90.2-code
     profiles: [ code ]
     container_name: code
     labels:
