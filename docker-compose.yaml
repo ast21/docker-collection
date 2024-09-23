@@ -201,14 +201,14 @@ services:
       - PGID=1000
       - TZ=Etc/UTC
       - PASSWORD=${CODE_PASSWORD}
+      - SUDO_PASSWORD=${CODE_SUDO_PASSWORD}
       #- HASHED_PASSWORD= #optional
-      #- SUDO_PASSWORD=password #optional
       #- SUDO_PASSWORD_HASH= #optional
       #- PROXY_DOMAIN=code-server.my.domain #optional
       #- DEFAULT_WORKSPACE=/config/workspace #optional
     volumes:
       - ./code/config:/config
-    networks: [ traefik ]
+    networks: [ traefik, databases ]
 
   # https://hub.docker.com/_/postgres
   postgresql:
