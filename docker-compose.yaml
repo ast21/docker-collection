@@ -33,6 +33,8 @@ services:
       #- --certificatesResolvers.letsencryptResolver.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       - --certificatesResolvers.letsencryptResolver.acme.email=${LETSENCRYPT_DEFAULT_EMAIL:-admin@example.com}
       - --certificatesResolvers.letsencryptResolver.acme.storage=/etc/traefik/letsencrypt/acme.json
+      # Создаёт entrypoint и слушает 443/udp порт.
+      - --entrypoints.udpSecure.address=:443/udp
       # debug mode
       - --log.level=DEBUG
     labels:
@@ -136,7 +138,7 @@ services:
     restart: unless-stopped
 
   wireguard:
-    image: weejewel/wg-easy
+    image: ghcr.io/wg-easy/wg-easy
     profiles: [ wireguard ]
     container_name: wireguard
     labels:
@@ -145,19 +147,24 @@ services:
       - traefik.http.routers.wg-web.entrypoints=web
       - traefik.http.routers.wg-web.rule=Host(`${WG_HOST:-wg.localhost}`)
       - traefik.http.routers.wg-web.middlewares=permanentToHttps@file
-      - traefik.http.routers.wg-web.service=wgService
+      - traefik.http.routers.wg-web.service=webService
       # wg-webSecure - роутер для https
-      - traefik.http.routers.wg.entrypoints=webSecure
-      - traefik.http.routers.wg.rule=Host(`${WG_HOST:-wg.localhost}`)
-      - traefik.http.routers.wg.tls=true
-      - traefik.http.routers.wg.tls.certResolver=letsencryptResolver
-      - traefik.http.routers.wg.service=wgService
-      - traefik.http.services.wgService.loadBalancer.server.port=51821
+      - traefik.http.routers.wg-webSecure.entrypoints=webSecure
+      - traefik.http.routers.wg-webSecure.rule=Host(`${WG_HOST:-wg.localhost}`)
+      - traefik.http.routers.wg-webSecure.tls=true
+      - traefik.http.routers.wg-webSecure.tls.certResolver=letsencryptResolver
+      - traefik.http.routers.wg-webSecure.service=webService
+      - traefik.http.services.webService.loadBalancer.server.port=51821
+      # wg-udp - роутер для проксирования порта 443/udp на 51820/udp
+      - traefik.udp.routers.wg-udpSecure.entrypoints=udpSecure
+      - traefik.udp.routers.wg-udpSecure.service=udpService
+      - traefik.udp.services.udpService.loadbalancer.server.port=51820
     volumes:
       - ./wireguard:/etc/wireguard
     environment:
       - WG_HOST=${WG_HOST:-wg.localhost}
-      - PASSWORD=${WG_PASSWORD:-wg.localhost}
+      - WG_PORT=${WG_PORT:-51820}
+      - PASSWORD_HASH=${WG_PASSWORD_HASH:-wg.localhost}
     networks: [ traefik ]
     restart: unless-stopped
     ports:
